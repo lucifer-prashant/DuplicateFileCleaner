@@ -1,0 +1,38 @@
+{
+	"name": "file-duplicate-cleaner",
+	"version": "1.0.0",
+	"description": "An Electron app to find and clean duplicate files",
+	"main": "index.js",
+	"scripts": {
+		"start": "electron .",
+		"build": "electron-builder",
+		"dist": "electron-builder --win",
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"author": "",
+	"license": "ISC",
+	"devDependencies": {
+		"electron": "^28.0.0",
+		"electron-builder": "^25.1.8"
+	},
+	"build": {
+		"appId": "com.file.duplicatecleaner",
+		"productName": "File Duplicate Cleaner",
+		"directories": {
+			"output": "dist"
+		},
+		"publish": null,
+		"files": [
+			"assets/**/*",
+			"index.js",
+			"index.html",
+			"renderer.js",
+			"preload.js",
+			"package.json"
+		],
+		"win": {
+			"target": "nsis",
+			"icon": "assets/icon.ico"
+		}
+	}
+}

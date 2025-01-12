@@ -1,0 +1,960 @@
+<!doctype html>
+<html>
+	<head>
+		<title>File Duplicate Cleaner</title>
+		<style>
+			.search-bar {
+				padding: 0.75rem;
+				border: 1px solid var(--gray-200);
+				border-radius: 6px;
+				width: 100%;
+				max-width: 300px;
+				margin-right: 1rem;
+			}
+
+			.filter-panel {
+				flex-wrap: wrap;
+				gap: 1rem;
+			}
+
+			.group-collapse-btn {
+				background: none;
+				border: none;
+				cursor: pointer;
+				padding: 0.5rem;
+				border-radius: 4px;
+			}
+
+			.group-collapse-btn:hover {
+				background: var(--gray-100);
+			}
+
+			.group-collapse-btn svg {
+				transition: transform 0.3s ease;
+			}
+
+			.group-collapse-btn.collapsed svg {
+				transform: rotate(-90deg);
+			}
+
+			.files-container {
+				transition: height 0.3s ease;
+			}
+
+			.files-container.collapsed {
+				height: 0;
+				overflow: hidden;
+			}
+
+			.keyboard-shortcut {
+				font-size: 0.75rem;
+				color: var(--gray-700);
+				margin-left: 0.5rem;
+				padding: 0.125rem 0.375rem;
+				background: var(--gray-100);
+				border-radius: 4px;
+			}
+
+			.batch-actions {
+				display: none;
+				align-items: center;
+				gap: 1rem;
+				margin-bottom: 1rem;
+				padding: 1rem;
+				background: white;
+				border-radius: 8px;
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+			}
+
+			.batch-actions.visible {
+				display: flex;
+			}
+
+			.loading {
+				position: relative;
+				pointer-events: none;
+			}
+
+			.loading::after {
+				content: "";
+				position: absolute;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				background: rgba(255, 255, 255, 0.7);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+			:root {
+				--primary: #2563eb;
+				--primary-dark: #1d4ed8;
+				--danger: #dc2626;
+				--danger-dark: #b91c1c;
+				--success: #059669;
+				--gray-50: #f9fafb;
+				--gray-100: #f3f4f6;
+				--gray-200: #e5e7eb;
+				--gray-700: #374151;
+				--gray-800: #1f2937;
+			}
+
+			body {
+				font-family:
+					system-ui,
+					-apple-system,
+					sans-serif;
+				margin: 0;
+				padding: 0;
+				background: var(--gray-50);
+				color: var(--gray-800);
+				line-height: 1.5;
+			}
+
+			.container {
+				max-width: 1200px;
+				margin: 0 auto;
+				padding: 2rem;
+			}
+
+			.header {
+				background: white;
+				border-bottom: 1px solid var(--gray-200);
+				padding: 1.5rem;
+				position: sticky;
+				top: 0;
+				z-index: 10;
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+			}
+
+			.header-content {
+				max-width: 1200px;
+				margin: 0 auto;
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+			}
+
+			.header h1 {
+				margin: 0;
+				font-size: 1.5rem;
+				color: var(--gray-800);
+			}
+
+			.stats-panel {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+				gap: 1.5rem;
+				margin: 2rem 0;
+			}
+
+			.stat-card {
+				background: white;
+				padding: 1.5rem;
+				border-radius: 12px;
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+				transition: transform 0.2s;
+			}
+
+			.stat-card:hover {
+				transform: translateY(-2px);
+			}
+
+			.stat-value {
+				font-size: 2rem;
+				font-weight: 700;
+				color: var(--primary);
+				margin-bottom: 0.5rem;
+			}
+
+			.stat-label {
+				color: var(--gray-700);
+				font-size: 0.875rem;
+				font-weight: 500;
+			}
+
+			.filter-panel {
+				background: white;
+				padding: 1.5rem;
+				border-radius: 12px;
+				margin: 2rem 0;
+				display: flex;
+				flex-wrap: wrap;
+				gap: 1.5rem;
+				align-items: center;
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+			}
+
+			.filter-group {
+				display: flex;
+				gap: 1rem;
+				align-items: center;
+			}
+
+			.checkbox-label {
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+				cursor: pointer;
+				padding: 0.5rem;
+				border-radius: 6px;
+				transition: background-color 0.2s;
+			}
+
+			.checkbox-label:hover {
+				background: var(--gray-100);
+			}
+
+			.duplicate-group {
+				background: white;
+				margin: 1.5rem 0;
+				padding: 1.5rem;
+				border-radius: 12px;
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+			}
+
+			.group-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-bottom: 1.5rem;
+				padding-bottom: 1rem;
+				border-bottom: 1px solid var(--gray-200);
+			}
+
+			.file-item {
+				margin: 1rem 0;
+				padding: 1rem;
+				background: var(--gray-50);
+				border-radius: 8px;
+				display: flex;
+				gap: 1rem;
+				align-items: center;
+				transition: all 0.3s ease;
+			}
+
+			.file-item:hover {
+				background: var(--gray-100);
+			}
+
+			.file-info {
+				flex-grow: 1;
+			}
+
+			.file-path {
+				font-family: ui-monospace, monospace;
+				color: var(--gray-700);
+				word-break: break-all;
+			}
+
+			.file-meta {
+				display: flex;
+				gap: 2rem;
+				margin-top: 0.5rem;
+				font-size: 0.875rem;
+				color: var(--gray-700);
+			}
+
+			.btn {
+				padding: 0.75rem 1.5rem;
+				border: none;
+				border-radius: 8px;
+				cursor: pointer;
+				font-weight: 500;
+				transition: all 0.2s;
+				display: inline-flex;
+				align-items: center;
+				gap: 0.5rem;
+				font-size: 0.875rem;
+			}
+
+			.btn-primary {
+				background: var(--primary);
+				color: white;
+			}
+
+			.btn-primary:hover {
+				background: var(--primary-dark);
+			}
+
+			.btn-danger {
+				background: var(--danger);
+				color: white;
+			}
+
+			.btn-danger:hover {
+				background: var(--danger-dark);
+			}
+
+			.btn:disabled {
+				opacity: 0.5;
+				cursor: not-allowed;
+			}
+
+			.radio-input {
+				width: 1.2rem;
+				height: 1.2rem;
+				cursor: pointer;
+			}
+
+			select {
+				padding: 0.5rem;
+				border-radius: 6px;
+				border: 1px solid var(--gray-200);
+				background: white;
+				font-size: 0.875rem;
+				cursor: pointer;
+			}
+
+			select:focus {
+				outline: 2px solid var(--primary);
+				outline-offset: 2px;
+			}
+
+			.undo-toast {
+				position: fixed;
+				bottom: 2rem;
+				right: 2rem;
+				background: var(--gray-800);
+				color: white;
+				padding: 1rem 1.5rem;
+				border-radius: 8px;
+				display: flex;
+				align-items: center;
+				gap: 1rem;
+				box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+				animation: slideIn 0.3s ease-out;
+			}
+
+			#status {
+				text-align: center;
+				padding: 1rem;
+				font-weight: 500;
+				color: var(--gray-700);
+			}
+
+			@keyframes slideIn {
+				from {
+					transform: translateX(100%);
+					opacity: 0;
+				}
+				to {
+					transform: translateX(0);
+					opacity: 1;
+				}
+			}
+			.btn-sm {
+				padding: 0.25rem 0.5rem;
+				font-size: 0.875rem;
+				margin-right: 0.5rem;
+			}
+
+			.controls {
+				display: flex;
+				gap: 0.5rem;
+				align-items: center;
+			}
+
+			.progress {
+				width: 100%;
+				height: 4px;
+				background: var(--gray-200);
+				border-radius: 2px;
+				overflow: hidden;
+				margin-top: 1rem;
+			}
+
+			.progress-bar {
+				height: 100%;
+				background: var(--primary);
+				width: 0%;
+				transition: width 0.3s ease;
+			}
+
+			.empty-state {
+				text-align: center;
+				padding: 4rem 2rem;
+				color: var(--gray-700);
+			}
+
+			.empty-state svg {
+				width: 4rem;
+				height: 4rem;
+				margin-bottom: 1rem;
+				color: var(--gray-400);
+			}
+			.progress-container {
+				background: white;
+				margin: 1rem auto;
+				max-width: 1200px;
+				padding: 1.5rem;
+				border-radius: 12px;
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+			}
+
+			.progress-info {
+				margin-bottom: 1rem;
+			}
+
+			.progress-text {
+				font-size: 1.125rem;
+				font-weight: 500;
+				color: var(--gray-800);
+				margin-bottom: 0.5rem;
+			}
+
+			.current-file {
+				font-size: 0.875rem;
+				color: var(--gray-700);
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+
+			.progress-bar {
+				width: 100%;
+				height: 0.5rem;
+				background: var(--gray-200);
+				border-radius: 0.25rem;
+				overflow: hidden;
+			}
+
+			.progress-bar-inner {
+				height: 100%;
+				background: var(--primary);
+				width: 0%;
+				transition: width 0.3s ease;
+			}
+		</style>
+	</head>
+	<body>
+		<header class="header">
+			<div class="header-content">
+				<h1>File Duplicate Cleaner</h1>
+				<button id="selectDir" class="btn btn-primary">Select Directory</button>
+			</div>
+		</header>
+		<div
+			id="progressContainer"
+			class="progress-container"
+			style="display: none">
+			<div class="progress-info">
+				<div class="progress-text">
+					<span id="filesScanned">0</span> /
+					<span id="totalFiles">0</span> files scanned
+				</div>
+				<div id="currentFile" class="current-file"></div>
+			</div>
+			<div class="progress-bar">
+				<div id="progressBarInner" class="progress-bar-inner"></div>
+			</div>
+		</div>
+
+		<main class="container">
+			<div id="filterPanel" class="filter-panel" style="display: none">
+				<div class="filter-group">
+					<label class="checkbox-label">
+						<input type="checkbox" id="showImages" checked />
+						Images
+					</label>
+					<label class="checkbox-label">
+						<input type="checkbox" id="showDocuments" checked />
+						Documents
+					</label>
+					<label class="checkbox-label">
+						<input type="checkbox" id="showVideos" checked />
+						Videos
+					</label>
+					<label class="checkbox-label">
+						<input type="checkbox" id="showOthers" checked />
+						Others
+					</label>
+				</div>
+				<select id="sortBy">
+					<option value="size">Sort by Size</option>
+					<option value="date">Sort by Date</option>
+					<option value="name">Sort by Name</option>
+				</select>
+			</div>
+
+			<div id="batchActions" class="batch-actions">
+				<span id="selectedCount">0 items selected</span>
+				<button class="btn btn-danger" id="deleteSelected">
+					Delete Selected
+				</button>
+				<button class="btn btn-primary" id="deselectAll">Deselect All</button>
+			</div>
+
+			<div id="statsPanel" class="stats-panel" style="display: none"></div>
+
+			<div id="status" class="empty-state">
+				Select a directory to start scanning for duplicates
+			</div>
+
+			<div id="results"></div>
+		</main>
+
+		<div id="undoToast" class="undo-toast" style="display: none">
+			<span id="undoMessage"></span>
+			<button id="undoButton" class="btn btn-primary">Undo</button>
+		</div>
+		<script src="renderer.js"></script>
+
+		<script>
+			// Store for undo operations
+			const deletedFiles = []
+			const stats = {
+				totalGroups: 0,
+				totalDuplicates: 0,
+				totalSize: 0,
+				fileTypes: new Map(),
+			}
+
+			document
+				.getElementById("selectDir")
+				.addEventListener("click", async () => {
+					try {
+						const status = document.getElementById("status")
+						status.textContent = "Scanning..."
+
+						if (!window.electron) {
+							console.error("Electron not detected")
+							status.textContent = "Error: Please run this app using Electron"
+							return
+						}
+
+						const duplicates = await window.electron.invoke("select-directory")
+						status.textContent = "Scan complete!"
+						updateStats(duplicates)
+						document.getElementById("filterPanel").style.display = "flex"
+						document.getElementById("statsPanel").style.display = "grid"
+						displayResults(duplicates)
+					} catch (error) {
+						console.error("Error:", error)
+						status.textContent = "Error occurred: " + error.message
+					}
+				})
+
+			function updateStats(duplicates) {
+				stats.totalGroups = duplicates.length
+				stats.totalDuplicates = 0
+				stats.totalSize = 0
+				stats.fileTypes.clear()
+
+				duplicates.forEach(([_, files]) => {
+					stats.totalDuplicates += files.length - 1
+					stats.totalSize += files[0].size * (files.length - 1)
+
+					const fileType = getFileType(files[0].path)
+					stats.fileTypes.set(
+						fileType,
+						(stats.fileTypes.get(fileType) || 0) + 1
+					)
+				})
+
+				displayStats()
+			}
+
+			function displayStats() {
+				const statsPanel = document.getElementById("statsPanel")
+				statsPanel.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${stats.totalGroups}</div>
+                    <div class="stat-label">Duplicate Groups</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.totalDuplicates}</div>
+                    <div class="stat-label">Total Duplicates</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${formatSize(stats.totalSize)}</div>
+                    <div class="stat-label">Potential Space Savings</div>
+                </div>
+            `
+			}
+
+			async function deleteFile(filePath, fileDiv, group) {
+				if (!(await confirmDeletion(filePath))) return
+
+				try {
+					const success = await window.electron.invoke("delete-file", filePath)
+					if (success) {
+						// Store file info for undo
+						deletedFiles.push({
+							path: filePath,
+							element: fileDiv.cloneNode(true),
+							groupElement: group,
+						})
+
+						// Remove file from display
+						fileDiv.style.opacity = "0"
+						setTimeout(() => {
+							fileDiv.remove()
+							updateGroupAfterDeletion(group)
+						}, 300)
+
+						showUndoToast()
+						showSuccessFeedback(fileDiv, "File deleted successfully")
+					}
+				} catch (error) {
+					console.error("Error deleting file:", error)
+					showErrorMessage(fileDiv, error.message)
+				}
+			}
+
+			function showUndoToast() {
+				const toast = document.getElementById("undoToast")
+				toast.style.display = "block"
+				toast.querySelector("#undoMessage").textContent = "File deleted. "
+
+				setTimeout(() => {
+					toast.style.display = "none"
+				}, 5000)
+			}
+
+			async function undoLastDelete() {
+				const lastDeleted = deletedFiles.pop()
+				if (!lastDeleted) return
+
+				try {
+					await window.electron.invoke("restore-file", lastDeleted.path)
+					const group = lastDeleted.groupElement
+					group
+						.querySelector(".files-container")
+						.appendChild(lastDeleted.element)
+					updateGroupAfterRestore(group)
+				} catch (error) {
+					console.error("Error restoring file:", error)
+				}
+			}
+
+			function confirmDeletion(filePath) {
+				return new Promise((resolve) => {
+					resolve(confirm(`Are you sure you want to delete:\n${filePath}`))
+				})
+			}
+
+			async function deleteAllButOne(group, files) {
+				if (
+					!confirm("Are you sure you want to delete all duplicates except one?")
+				)
+					return
+
+				const keepFile = group.querySelector('input[type="radio"]:checked')
+				if (!keepFile) {
+					alert("Please select a file to keep")
+					return
+				}
+
+				for (const file of files) {
+					if (file.path !== keepFile.value) {
+						await deleteFile(
+							file.path,
+							group.querySelector(`[data-path="${file.path}"]`),
+							group
+						)
+					}
+				}
+			}
+			async function previewFile(filePath) {
+				try {
+					await window.electron.invoke("preview-file", filePath)
+				} catch (error) {
+					console.error("Error previewing file:", error)
+					alert("Error previewing file: " + error.message)
+				}
+			}
+
+			function showSuccessFeedback(element, message) {
+				const feedback = document.createElement("span")
+				feedback.className = "success-feedback"
+				feedback.textContent = message
+				feedback.style.opacity = "1"
+				element.appendChild(feedback)
+				setTimeout(() => (feedback.style.opacity = "0"), 2000)
+			}
+
+			function showErrorMessage(element, message) {
+				const error = document.createElement("div")
+				error.className = "error-message"
+				error.textContent = message
+				element.appendChild(error)
+				setTimeout(() => error.remove(), 3000)
+			}
+
+			function updateGroupAfterDeletion(group) {
+				const remainingFiles = group.querySelectorAll(".file-item").length
+				const header = group.querySelector("h3")
+				if (remainingFiles <= 1) {
+					group.remove()
+				} else {
+					header.textContent = `${remainingFiles} duplicate files found`
+				}
+			}
+
+			function getFileType(filePath) {
+				const ext = filePath.split(".").pop().toLowerCase()
+				const imageExts = ["jpg", "jpeg", "png", "gif"]
+				const docExts = ["doc", "docx", "pdf", "txt"]
+				const videoExts = ["mp4", "avi", "mkv"]
+
+				if (imageExts.includes(ext)) return "image"
+				if (docExts.includes(ext)) return "document"
+				if (videoExts.includes(ext)) return "video"
+				return "other"
+			}
+
+			// Rest of the code (displayResults, formatSize) remains the same but with added radio buttons
+			function displayResults(duplicates) {
+				const resultsDiv = document.getElementById("results")
+				resultsDiv.innerHTML = ""
+
+				if (!duplicates || duplicates.length === 0) {
+					resultsDiv.innerHTML = "<p>No duplicates found</p>"
+					return
+				}
+
+				duplicates.forEach(([hash, files]) => {
+					const group = document.createElement("div")
+					group.className = "duplicate-group"
+
+					const groupHeader = document.createElement("div")
+					groupHeader.className = "group-header"
+
+					const header = document.createElement("h3")
+					header.textContent = `${files.length} duplicate files found (${formatSize(files[0].size)})`
+
+					const groupControls = document.createElement("div")
+					const deleteAllBtn = document.createElement("button")
+					deleteAllBtn.className = "btn btn-danger"
+					deleteAllBtn.textContent = "Delete All Except Selected"
+					deleteAllBtn.onclick = () => deleteAllButOne(group, files)
+
+					groupHeader.appendChild(header)
+					groupHeader.appendChild(deleteAllBtn)
+					group.appendChild(groupHeader)
+
+					const filesContainer = document.createElement("div")
+					filesContainer.className = "files-container"
+
+					files.forEach((file, index) => {
+						const fileDiv = document.createElement("div")
+						fileDiv.className = "file-item"
+						fileDiv.setAttribute("data-path", file.path)
+
+						const radio = document.createElement("input")
+						radio.type = "radio"
+						radio.name = `keep-${hash}`
+						radio.value = file.path
+						radio.className = "keep-checkbox"
+						if (index === 0) radio.checked = true
+
+						const fileInfo = document.createElement("div")
+						fileInfo.className = "file-info"
+
+						const previewBtn = document.createElement("button")
+						previewBtn.className = "btn btn-primary btn-sm"
+						previewBtn.textContent = "Preview"
+						previewBtn.onclick = () => previewFile(file.path)
+
+						fileInfo.innerHTML = `
+                <div class="file-path">${file.path}</div>
+                <div class="file-meta">
+                    <span>Modified: ${new Date(file.modified).toLocaleString()}</span>
+                    <span>Size: ${formatSize(file.size)}</span>
+                </div>
+            `
+
+						const controls = document.createElement("div")
+						controls.className = "controls"
+
+						const deleteButton = document.createElement("button")
+						deleteButton.className = "btn btn-danger"
+						deleteButton.textContent = "Delete"
+						deleteButton.onclick = () => deleteFile(file.path, fileDiv, group)
+
+						fileDiv.appendChild(radio)
+						fileDiv.appendChild(fileInfo)
+						controls.appendChild(previewBtn)
+						controls.appendChild(deleteButton)
+						fileDiv.appendChild(controls)
+						filesContainer.appendChild(fileDiv)
+					})
+
+					// Add the filesContainer to the group (this was missing)
+					group.appendChild(filesContainer)
+					// Add the complete group to the results
+					resultsDiv.appendChild(group)
+				})
+			}
+			function formatSize(bytes) {
+				const sizes = ["Bytes", "KB", "MB", "GB"]
+				if (bytes === 0) return "0 Bytes"
+				const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)))
+				return Math.round(bytes / Math.pow(1024, i), 2) + " " + sizes[i]
+			}
+
+			// Filter and sort functionality
+			document
+				.getElementById("showImages")
+				.addEventListener("change", filterResults)
+			document
+				.getElementById("showDocuments")
+				.addEventListener("change", filterResults)
+			document
+				.getElementById("showVideos")
+				.addEventListener("change", filterResults)
+			document
+				.getElementById("showOthers")
+				.addEventListener("change", filterResults)
+			document
+				.getElementById("sortBy")
+				.addEventListener("change", filterResults)
+
+			function filterResults() {
+				const showImages = document.getElementById("showImages").checked
+				const showDocuments = document.getElementById("showDocuments").checked
+				const showVideos = document.getElementById("showVideos").checked
+				const showOthers = document.getElementById("showOthers").checked
+				const sortBy = document.getElementById("sortBy").value
+
+				const duplicateGroups = Array.from(
+					document.querySelectorAll(".duplicate-group")
+				)
+
+				duplicateGroups.forEach((group) => {
+					const firstFilePath = group.querySelector(".file-path").textContent
+					const fileType = getFileType(firstFilePath)
+
+					let shouldShow = false
+					switch (fileType) {
+						case "image":
+							shouldShow = showImages
+							break
+						case "document":
+							shouldShow = showDocuments
+							break
+						case "video":
+							shouldShow = showVideos
+							break
+						default:
+							shouldShow = showOthers
+					}
+
+					group.style.display = shouldShow ? "block" : "none"
+				})
+
+				// Sort visible groups
+				const sortGroups = (a, b) => {
+					if (a.style.display === "none" || b.style.display === "none") return 0
+
+					switch (sortBy) {
+						case "size":
+							const sizeA = parseFloat(
+								a.querySelector("h3").textContent.match(/\((.*?)\)/)[1]
+							)
+							const sizeB = parseFloat(
+								b.querySelector("h3").textContent.match(/\((.*?)\)/)[1]
+							)
+							return sizeB - sizeA
+						case "date":
+							const dateA = new Date(
+								a
+									.querySelector(".file-info div:nth-child(2)")
+									.textContent.split(": ")[1]
+							)
+							const dateB = new Date(
+								b
+									.querySelector(".file-info div:nth-child(2)")
+									.textContent.split(": ")[1]
+							)
+							return dateB - dateA
+						case "name":
+							const nameA = a
+								.querySelector(".file-path")
+								.textContent.toLowerCase()
+							const nameB = b
+								.querySelector(".file-path")
+								.textContent.toLowerCase()
+							return nameA.localeCompare(nameB)
+					}
+				}
+
+				const resultsDiv = document.getElementById("results")
+				const sortedGroups = duplicateGroups.sort(sortGroups)
+				sortedGroups.forEach((group) => resultsDiv.appendChild(group))
+			}
+
+			// Undo functionality
+			document
+				.getElementById("undoButton")
+				.addEventListener("click", async () => {
+					await undoLastDelete()
+					const toast = document.getElementById("undoToast")
+					toast.style.display = "none"
+				})
+
+			function updateGroupAfterRestore(group) {
+				const files = group.querySelectorAll(".file-item")
+				const header = group.querySelector("h3")
+				header.textContent = `${files.length} duplicate files found`
+			}
+
+			// Add transitions for smoother UI
+			document.querySelectorAll(".file-item").forEach((item) => {
+				item.style.transition = "opacity 0.3s ease"
+			})
+
+			// Update stats when files are deleted
+			function updateStatsAfterDeletion(fileSize) {
+				stats.totalDuplicates--
+				stats.totalSize -= fileSize
+				if (stats.totalDuplicates === 0) {
+					stats.totalGroups--
+				}
+				displayStats()
+			}
+
+			// Progress indicator during scan
+			async function showScanProgress() {
+				const status = document.getElementById("status")
+				const dots = [".", "..", "..."]
+				let i = 0
+
+				const interval = setInterval(() => {
+					if (status.textContent.startsWith("Scanning")) {
+						status.textContent = "Scanning" + dots[i]
+						i = (i + 1) % dots.length
+					} else {
+						clearInterval(interval)
+					}
+				}, 500)
+			}
+
+			// Initialize the app
+			function init() {
+				// Set default filter states
+				document.getElementById("showImages").checked = true
+				document.getElementById("showDocuments").checked = true
+				document.getElementById("showVideos").checked = true
+				document.getElementById("showOthers").checked = true
+
+				// Add transition styles
+				const style = document.createElement("style")
+				style.textContent = `
+                .file-item {
+                    transition: opacity 0.3s ease, transform 0.3s ease;
+                }
+                .file-item.deleting {
+                    opacity: 0;
+                    transform: translateX(-20px);
+                }
+            `
+				document.head.appendChild(style)
+			}
+
+			init()
+		</script>
+	</body>
+</html>
